@@ -253,7 +253,7 @@ parameters = {
 }
 headers = {
   'Accepts': 'application/json',
-  'X-CMC_PRO_API_KEY': '07bbb9b1-f73c-4f89-88c8-55170408e5c2',
+  'X-CMC_PRO_API_KEY': '',
 }
 
 @bot.message_handler(commands=['time']) #получить курсы
