@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 import time
 
 
-bot = telebot.TeleBot('6350954980:AAFFtfeILyMj1bg5jQK3QqdMmfviJcI8XTk')
+bot = telebot.TeleBot('')
 bot_user_id = None
 username = None
 chat_id = None
