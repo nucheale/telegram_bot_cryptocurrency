@@ -4,6 +4,7 @@ import sqlite3
 import re
 # from apscheduler.schedulers.asyncio import AsyncIOScheduler
 # import scheduled_jobs
+import asyncio
 from datetime import datetime, timedelta
 import time
 
@@ -30,6 +31,29 @@ for e in currencies:
     # cursor.execute(f"SELECT * FROM currencies WHERE currency_name = '{e}'")
     # result = cursor.fetchall()
     # print (result)
+
+# -------------PRINT DATABASE------------------
+# connection = sqlite3.connect('currencies_db.sql')
+# cursor.execute('SELECT * FROM users_data')
+# users_data = cursor.fetchall() 
+# cursor.execute('SELECT * FROM users')
+# users = cursor.fetchall()
+# cursor.execute('SELECT * FROM currencies')
+# currDB = cursor.fetchall()
+
+# data_db = ''
+# for e in users:
+#         data_db+= f'id: {e[0]}, Имя: {e[1]}, botuserid: {e[2]}, status: {e[3]}\n'
+# data_db+= 'БД 2:\n'
+# for e in users_data:
+#         data_db+= f'id: {e[0]}, Имя: {e[1]}, botuserid: {e[2]}, currency: {e[3]}\n'
+# data_db+= 'БД 3:\n'
+# for e in currDB:
+#      data_db+= f'id: {e[0]}, name: {e[1]}, price: {e[3]}, timestamp: {e[4]}\n'
+# # bot.send_message(message.chat.id, f'БД:\n{data_db}')
+# print (f'БД:\n{data_db}')
+# -------------PRINT DATABASE------------------
+
 cursor.close()
 connection.close()
 
@@ -319,6 +343,38 @@ def currencies_list(message):
 # connection.close()
 
 
+def send_message_to_user(user_id, message_to_send):
+    bot.send_message(user_id, message_to_send)
 
+def send_messages(users, message_to_send):
+    for user in users:
+        send_message_to_user(user, message_to_send)
+
+import threading
+
+def send_messages_in_threads(users, message_to_send):
+    print (f'len(users): {len(users)}')
+    if len(users) < 10:
+        num_threads = 1
+    else:
+        num_threads = 10
+    users_per_thread = len(users) // num_threads
+    print (f'users_per_thread: {users_per_thread}')
+    threads = []
+
+    for i in range(0, len(users), users_per_thread):
+        thread = threading.Thread(target=send_messages, args=(users[i:i+users_per_thread], message_to_send)) 
+        threads.append(thread)
+        thread.start()
+        # print ('iteration') #итераций столько, сколько и человек в all users
+
+    for thread in threads:
+        thread.join()
+
+
+
+all_users = []
+message_to_send = 'Привет'
+send_messages_in_threads(all_users, message_to_send)
 
 bot.polling(none_stop=True)
