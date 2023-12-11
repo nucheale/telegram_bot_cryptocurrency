@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 import time
 
 
-bot = telebot.TeleBot('6350954980:AAFFtfeILyMj1bg5jQK3QqdMmfviJcI8XTk')
+bot = telebot.TeleBot('')
 bot_user_id = None
 username = None
 chat_id = None
@@ -253,7 +253,7 @@ parameters = {
 }
 headers = {
   'Accepts': 'application/json',
-  'X-CMC_PRO_API_KEY': '07bbb9b1-f73c-4f89-88c8-55170408e5c2',
+  'X-CMC_PRO_API_KEY': '',
 }
 
 @bot.message_handler(commands=['time']) #получить курсы
