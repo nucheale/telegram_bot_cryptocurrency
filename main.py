@@ -2,8 +2,8 @@ import telebot
 from telebot import types
 import sqlite3
 import re
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
-import scheduled_jobs
+# from apscheduler.schedulers.asyncio import AsyncIOScheduler
+# import scheduled_jobs
 from datetime import datetime, timedelta
 import time
 
@@ -263,6 +263,7 @@ def currencies_list(message):
     currency_list = ''
     cursor.execute(f"SELECT * FROM users_data WHERE bot_id = '{bot_user_id}'")
     currency_list = cursor.fetchall()
+    print (currency_list)
     if currency_list == []:
         bot.send_message(message.chat.id, f'У вас не выбрано ни одной валюты')
     else:
@@ -287,10 +288,11 @@ def currencies_list(message):
                         cursor.execute(f"INSERT INTO currencies (currency_name, currency_price, timestamp) VALUES ('{(re.sub(r'[^a-zA-Z]', '', str(curr[3])))}', {e['quote']['USD']['price']}, '{datetime.now()}')")
                         connection.commit()
                         break
+            bot.send_message(message.chat.id, f'Текущие курсы валют:\n{result}')
         except (ConnectionError, Timeout, TooManyRedirects) as e:
             print(e)
 
-    bot.send_message(message.chat.id, f'Текущие курсы валют:\n{result}')
+    
     cursor.close()
     connection.close()
 
