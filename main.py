@@ -4,23 +4,29 @@ import sqlite3
 import re
 # from apscheduler.schedulers.asyncio import AsyncIOScheduler
 # import scheduled_jobs
-import asyncio
+# import asyncio
+from requests import Request, Session
+from requests.exceptions import ConnectionError, Timeout, TooManyRedirects
+import json
+import schedule
+import threading
+from threading import Thread
 from datetime import datetime, timedelta
 import time
-
 
 bot = telebot.TeleBot('')
 bot_user_id = None
 username = None
 chat_id = None
+times = ['00:00', '03:00', '06:00', '09:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00', '22:00', '23:00']
 
-async def send_message_by_time():
-    await bot.send_message(201994697, f'Рассылка')
-    print ('SENT')
+# async def send_message_by_time():
+#     await bot.send_message(201994697, f'Рассылка')
+    # print ('SENT')
 
 connection = sqlite3.connect('currencies_db.sql')
 cursor = connection.cursor()
-cursor.execute('CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, bot_id INTEGER, status INTEGER CHECK(status IN (0, 1)))')
+cursor.execute('CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, bot_id INTEGER, status INTEGER CHECK(status IN (0, 1)), time TEXT)')
 cursor.execute('CREATE TABLE IF NOT EXISTS users_data (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, bot_id INTEGER, currency_name TEXT, currency_name_full TEXT)')
 cursor.execute('CREATE TABLE IF NOT EXISTS currencies (id INTEGER PRIMARY KEY AUTOINCREMENT, currency_name TEXT, currency_name_full TEXT, currency_price REAL, timestamp TEXT)')
 currencies = ['BTC', 'ETH', 'BNB', 'XRP', 'SOL', 'ADA', 'DOGE', 'AVAX', 'TRX', 'DOT', 'LINK', 'MATIC', 'TON', 'SHIB', 'LTC', 'BCH', 'KAS']
@@ -147,16 +153,15 @@ def callback_message(callback):
         cursor.execute(f"SELECT * FROM users_data WHERE bot_id = '{bot_user_id}' AND currency_name IS NULL")
         users = cursor.fetchall()
         if users == []:
-            print (users)
+            # print (users)
             cursor.execute(f"INSERT INTO users_data (name, bot_id, currency_name) VALUES ('{username}', '{bot_user_id}', '{callback.data.replace('_add', '')}')")
             connection.commit()
         else:
             cursor.execute(f"UPDATE users_data SET currency_name = '{callback.data.replace('_add', '')}' WHERE bot_id = '{bot_user_id}' AND currency_name IS NULL")
-            connection.commit()
-        
-        cursor.close()
-        connection.close() 
+            connection.commit()  
         bot.send_message(callback.message.chat.id, f'Валюта {callback.data.replace('_add', '')} добавлена в ваш список')
+    cursor.close()
+    connection.close()
 
 
 @bot.message_handler(commands=['remove'])
@@ -167,7 +172,7 @@ def add(message):
     currency_list = ''
     cursor.execute(f"SELECT * FROM users_data WHERE bot_id = '{bot_user_id}'")
     currency_list = cursor.fetchall()
-    # print (currency_list)
+    # print (f'currency_list: {currency_list}')
     result = ''
     for e in currency_list:
         result += f'{e[3]}/n'
@@ -262,10 +267,37 @@ def currencies_list(message):
     bot.send_message(message.chat.id, f'К вашему списку добавлены 10 самых популярных валют на данный момент')
 
 
+@bot.message_handler(commands=['time']) #получить курсы
+def currencies_list(message):
+    markup = types.InlineKeyboardMarkup()
+    connection = sqlite3.connect('currencies_db.sql')
+    cursor = connection.cursor()
+    user_time = []
+    cursor.execute(f"SELECT time FROM users WHERE bot_id = '{bot_user_id}'")
+    connection.commit()
+    user_time = cursor.fetchall()
+    # print (user_time)
+    # print (user_time[0])
+    for e in times:
+            markup.add(types.InlineKeyboardButton(e, callback_data=f'{str(e)}_set_time'))
+    if user_time == [(None,)]:
+        bot.send_message(message.chat.id, 'Ваше текущее время для уведомления о курсах валют не установлено. Для установки выберите его из списка ниже. Указано московское время.', reply_markup=markup)
+    else:
+        user_time_re = re.sub(r'[^0-9:]', '', str(user_time[0]))
+        bot.send_message(message.chat.id, f'Ваше текущее время для уведомления о курсах валют: {user_time_re}. Для изменения выберите новое время из списка ниже. Указано московское время.', reply_markup=markup)
+    cursor.close()
+    connection.close()
 
-from requests import Request, Session
-from requests.exceptions import ConnectionError, Timeout, TooManyRedirects
-import json
+@bot.callback_query_handler(func=lambda callback: callback.data.find('_set_time') != -1)
+def callback_message(callback):
+    connection = sqlite3.connect('currencies_db.sql')
+    cursor = connection.cursor()
+    cursor.execute(f"UPDATE users SET time = '{callback.data.replace('_set_time', '')}' WHERE bot_id = '{bot_user_id}'")
+    connection.commit()
+    bot.send_message(callback.message.chat.id, f'Установлено новое время для уведомления о курсах валют: {callback.data.replace('_set_time', '')}')
+    cursor.close()
+    connection.close()
+
 
 
 
@@ -280,14 +312,14 @@ headers = {
   'X-CMC_PRO_API_KEY': '',
 }
 
-@bot.message_handler(commands=['time']) #получить курсы
+@bot.message_handler(commands=['disable']) #получить курсы
 def currencies_list(message):
     connection = sqlite3.connect('currencies_db.sql')
     cursor = connection.cursor()
     currency_list = ''
     cursor.execute(f"SELECT * FROM users_data WHERE bot_id = '{bot_user_id}'")
     currency_list = cursor.fetchall()
-    print (currency_list)
+    # print (currency_list)
     if currency_list == []:
         bot.send_message(message.chat.id, f'У вас не выбрано ни одной валюты')
     else:
@@ -298,49 +330,21 @@ def currencies_list(message):
         try:
             response = session.get(url, params=parameters)
             data = json.loads(response.text)
-            # connection = sqlite3.connect('currencies_db.sql')
-            # cursor = connection.cursor()
             result = ''
             for e in data['data']:
                 for curr in currency_list:
-                    # print ({curr[3]})
                     if e['symbol'] == (re.sub(r'[^a-zA-Z]', '', str(curr[3]))):
-                        # print('YES')
                         curr_price = '{:,.4f}'.format(e['quote']['USD']['price']) 
                         result += f'{(re.sub(r'[^a-zA-Z]', '', str(curr[3])))}: {curr_price}\n'
-                        # print (f'{curr}: {curr_price}')
                         cursor.execute(f"INSERT INTO currencies (currency_name, currency_price, timestamp) VALUES ('{(re.sub(r'[^a-zA-Z]', '', str(curr[3])))}', {e['quote']['USD']['price']}, '{datetime.now()}')")
                         connection.commit()
                         break
             bot.send_message(message.chat.id, f'Текущие курсы валют:\n{result}')
         except (ConnectionError, Timeout, TooManyRedirects) as e:
             print(e)
-
     
     cursor.close()
     connection.close()
-
-# session = Session()
-# session.headers.update(headers)
-
-# try:
-#     response = session.get(url, params=parameters)
-#     data = json.loads(response.text)
-#     connection = sqlite3.connect('currencies_db.sql')
-#     cursor = connection.cursor()
-#     for e in data['data']:
-#         for curr in currencies:
-#             if e['symbol'] == curr:
-#                 curr_price = '{:,.4f}'.format(e['quote']['USD']['price']) 
-#                 print (f'{curr}: {curr_price}')
-#                 cursor.execute(f"INSERT INTO currencies (currency_name, currency_price, timestamp) VALUES ('{curr}', {e['quote']['USD']['price']}, '{datetime.now()}')")
-#                 connection.commit()
-#                 break
-# except (ConnectionError, Timeout, TooManyRedirects) as e:
-#     print(e)
-    
-# cursor.close()
-# connection.close()
 
 
 def send_message_to_user(user_id, message_to_send):
@@ -350,31 +354,89 @@ def send_messages(users, message_to_send):
     for user in users:
         send_message_to_user(user, message_to_send)
 
-import threading
-
 def send_messages_in_threads(users, message_to_send):
-    print (f'len(users): {len(users)}')
+    # print (f'len(users): {len(users)}')
     if len(users) < 10:
         num_threads = 1
     else:
-        num_threads = 10
+        num_threads = 12
     users_per_thread = len(users) // num_threads
-    print (f'users_per_thread: {users_per_thread}')
+    # print (f'users_per_thread: {users_per_thread}')
     threads = []
 
-    for i in range(0, len(users), users_per_thread):
-        thread = threading.Thread(target=send_messages, args=(users[i:i+users_per_thread], message_to_send)) 
-        threads.append(thread)
-        thread.start()
-        # print ('iteration') #итераций столько, сколько и человек в all users
+    if len(users) > 0:
+        for i in range(0, len(users), users_per_thread):
+            thread = threading.Thread(target=send_messages, args=(users[i:i+users_per_thread], message_to_send)) 
+            threads.append(thread)
+            thread.start()
+            # print ('iteration') #итераций столько, сколько и человек в all users
 
     for thread in threads:
         thread.join()
 
 
+for e in times:
+    connection = sqlite3.connect('currencies_db.sql')
+    cursor = connection.cursor()
+    users_data = ''
+    cursor.execute(f"SELECT * FROM users WHERE time LIKE '%{e}%'")
+    users_data = cursor.fetchall()
+    if not users_data == []:
+        for elem in users_data:
+            print (f'elem: {elem}')
+            print (f'bot_id_by_time: {elem[4]}, time: {e}')
 
-all_users = []
-message_to_send = 'Привет'
-send_messages_in_threads(all_users, message_to_send)
+def currencies_prices():
+    connection = sqlite3.connect('currencies_db.sql')
+    cursor = connection.cursor()
+    currency_list = ''
+    cursor.execute(f"SELECT * FROM users_data WHERE bot_id = '{bot_user_id}'")
+    currency_list = cursor.fetchall()
+    # print (currency_list)
+    if currency_list == []:
+        result = ''
+    else:
+        session = Session()
+        session.headers.update(headers)
+        try:
+            response = session.get(url, params=parameters)
+            data = json.loads(response.text)
+            result = ''
+            for e in data['data']:
+                for curr in currency_list:
+                    if e['symbol'] == (re.sub(r'[^a-zA-Z]', '', str(curr[3]))):
+                        curr_price = '{:,.4f}'.format(e['quote']['USD']['price']) 
+                        result += f'{(re.sub(r'[^a-zA-Z]', '', str(curr[3])))}: {curr_price} USD\n'
+                        cursor.execute(f"INSERT INTO currencies (currency_name, currency_price, timestamp) VALUES ('{(re.sub(r'[^a-zA-Z]', '', str(curr[3])))}', {e['quote']['USD']['price']}, '{datetime.now()}')")
+                        connection.commit()
+                        break
+            result = f'Текущие курсы валют:\n{result}'
+        except (ConnectionError, Timeout, TooManyRedirects) as e:
+            print(e)
+    return result
 
-bot.polling(none_stop=True)
+def main():
+    print('Бот запущен')
+    while True:
+        now = datetime.now()
+        for time_element in times:
+            all_users = []
+            if now.hour == int(time_element.split(':')[0]) and  now.minute == int(time_element.split(':')[1]):
+                connection = sqlite3.connect('currencies_db.sql')
+                cursor = connection.cursor()
+                users_data = ''
+                cursor.execute(f"SELECT * FROM users WHERE time LIKE '%{time_element}%'")
+                users_data = cursor.fetchall()
+                # print (f'users_data: {users_data}')
+                if not users_data == []:
+                    for elem in users_data:
+                        # print (f'bot_id_by_time: {elem[3]}, time: {e}')
+                        all_users.append(elem[2])
+                        # print (f'all_users: {all_users}')
+                send_messages_in_threads(all_users, currencies_prices())
+                cursor.close()
+                connection.close()
+        time.sleep(50)
+
+Thread(target=main).start()
+bot.polling(none_stop=True, interval=0)
