@@ -1,0 +1,345 @@
+{
+    "id": "2273379916166834187",
+    "from_user": {
+      "id": 6971763453,
+      "is_bot": false,
+      "first_name": "Ivan",
+      "username": "kxcvz",
+      "last_name": null,
+      "language_code": "ru",
+      "can_join_groups": null,
+      "can_read_all_group_messages": null,
+      "supports_inline_queries": null,
+      "is_premium": null,
+      "added_to_attachment_menu": null
+    },
+    "message": {
+      "content_type": "text",
+      "id": 299,
+      "message_id": 299,
+      "from_user": "<telebot.types.User object at 0x000002D064F489B0>",
+      "date": 1702377960,
+      "chat": "<telebot.types.Chat object at 0x000002D064F48650>",
+      "sender_chat": null,
+      "forward_from": null,
+      "forward_from_chat": null,
+      "forward_from_message_id": null,
+      "forward_signature": null,
+      "forward_sender_name": null,
+      "forward_date": null,
+      "is_automatic_forward": null,
+      "reply_to_message": null,
+      "via_bot": null,
+      "edit_date": null,
+      "has_protected_content": null,
+      "media_group_id": null,
+      "author_signature": null,
+      "text": "Выберите нужную валюту для добавления",
+      "entities": null,
+      "caption_entities": null,
+      "audio": null,
+      "document": null,
+      "photo": null,
+      "sticker": null,
+      "video": null,
+      "video_note": null,
+      "voice": null,
+      "caption": null,
+      "contact": null,
+      "location": null,
+      "venue": null,
+      "animation": null,
+      "dice": null,
+      "new_chat_member": null,
+      "new_chat_members": null,
+      "left_chat_member": null,
+      "new_chat_title": null,
+      "new_chat_photo": null,
+      "delete_chat_photo": null,
+      "group_chat_created": null,
+      "supergroup_chat_created": null,
+      "channel_chat_created": null,
+      "migrate_to_chat_id": null,
+      "migrate_from_chat_id": null,
+      "pinned_message": null,
+      "invoice": null,
+      "successful_payment": null,
+      "connected_website": null,
+      "reply_markup": "<telebot.types.InlineKeyboardMarkup object at 0x000002D06423F9E0>",
+      "message_thread_id": null,
+      "is_topic_message": null,
+      "forum_topic_created": null,
+      "forum_topic_closed": null,
+      "forum_topic_reopened": null,
+      "has_media_spoiler": null,
+      "forum_topic_edited": null,
+      "general_forum_topic_hidden": null,
+      "general_forum_topic_unhidden": null,
+      "write_access_allowed": null,
+      "user_shared": null,
+      "chat_shared": null,
+      "story": null,
+      "json": {
+        "message_id": 299,
+        "from": {
+          "id": 6894256990,
+          "is_bot": true,
+          "first_name": "test_cryptocurrencies_daily_bot",
+          "username": "test_cryptocurrencies_daily_bot"
+        },
+        "chat": {
+          "id": 6971763453,
+          "first_name": "Ivan",
+          "username": "kxcvz",
+          "type": "private"
+        },
+        "date": 1702377960,
+        "text": "Выберите нужную валюту для добавления",
+        "reply_markup": {
+          "inline_keyboard": [
+            [
+              {
+                "text": "BTC",
+                "callback_data": "BTC_add"
+              }
+            ],
+            [
+              {
+                "text": "ETH",
+                "callback_data": "ETH_add"
+              }
+            ],
+            [
+              {
+                "text": "BNB",
+                "callback_data": "BNB_add"
+              }
+            ],
+            [
+              {
+                "text": "XRP",
+                "callback_data": "XRP_add"
+              }
+            ],
+            [
+              {
+                "text": "SOL",
+                "callback_data": "SOL_add"
+              }
+            ],
+            [
+              {
+                "text": "ADA",
+                "callback_data": "ADA_add"
+              }
+            ],
+            [
+              {
+                "text": "DOGE",
+                "callback_data": "DOGE_add"
+              }
+            ],
+            [
+              {
+                "text": "AVAX",
+                "callback_data": "AVAX_add"
+              }
+            ],
+            [
+              {
+                "text": "TRX",
+                "callback_data": "TRX_add"
+              }
+            ],
+            [
+              {
+                "text": "DOT",
+                "callback_data": "DOT_add"
+              }
+            ],
+            [
+              {
+                "text": "LINK",
+                "callback_data": "LINK_add"
+              }
+            ],
+            [
+              {
+                "text": "MATIC",
+                "callback_data": "MATIC_add"
+              }
+            ],
+            [
+              {
+                "text": "TON",
+                "callback_data": "TON_add"
+              }
+            ],
+            [
+              {
+                "text": "SHIB",
+                "callback_data": "SHIB_add"
+              }
+            ],
+            [
+              {
+                "text": "LTC",
+                "callback_data": "LTC_add"
+              }
+            ],
+            [
+              {
+                "text": "BCH",
+                "callback_data": "BCH_add"
+              }
+            ],
+            [
+              {
+                "text": "KAS",
+                "callback_data": "KAS_add"
+              }
+            ]
+          ]
+        }
+      }
+    },
+    "inline_message_id": null,
+    "chat_instance": "9037939216670540202",
+    "data": "MATIC_add",
+    "game_short_name": null,
+    "json": {
+      "id": "2273379916166834187",
+      "from": {
+        "id": 6971763453,
+        "is_bot": false,
+        "first_name": "Ivan",
+        "username": "kxcvz",
+        "language_code": "ru"
+      },
+      "message": {
+        "message_id": 299,
+        "from": {
+          "id": 6894256990,
+          "is_bot": true,
+          "first_name": "test_cryptocurrencies_daily_bot",
+          "username": "test_cryptocurrencies_daily_bot"
+        },
+        "chat": {
+          "id": 6971763453,
+          "first_name": "Ivan",
+          "username": "kxcvz",
+          "type": "private"
+        },
+        "date": 1702377960,
+        "text": "Выберите нужную валюту для добавления",
+        "reply_markup": {
+          "inline_keyboard": [
+            [
+              {
+                "text": "BTC",
+                "callback_data": "BTC_add"
+              }
+            ],
+            [
+              {
+                "text": "ETH",
+                "callback_data": "ETH_add"
+              }
+            ],
+            [
+              {
+                "text": "BNB",
+                "callback_data": "BNB_add"
+              }
+            ],
+            [
+              {
+                "text": "XRP",
+                "callback_data": "XRP_add"
+              }
+            ],
+            [
+              {
+                "text": "SOL",
+                "callback_data": "SOL_add"
+              }
+            ],
+            [
+              {
+                "text": "ADA",
+                "callback_data": "ADA_add"
+              }
+            ],
+            [
+              {
+                "text": "DOGE",
+                "callback_data": "DOGE_add"
+              }
+            ],
+            [
+              {
+                "text": "AVAX",
+                "callback_data": "AVAX_add"
+              }
+            ],
+            [
+              {
+                "text": "TRX",
+                "callback_data": "TRX_add"
+              }
+            ],
+            [
+              {
+                "text": "DOT",
+                "callback_data": "DOT_add"
+              }
+            ],
+            [
+              {
+                "text": "LINK",
+                "callback_data": "LINK_add"
+              }
+            ],
+            [
+              {
+                "text": "MATIC",
+                "callback_data": "MATIC_add"
+              }
+            ],
+            [
+              {
+                "text": "TON",
+                "callback_data": "TON_add"
+              }
+            ],
+            [
+              {
+                "text": "SHIB",
+                "callback_data": "SHIB_add"
+              }
+            ],
+            [
+              {
+                "text": "LTC",
+                "callback_data": "LTC_add"
+              }
+            ],
+            [
+              {
+                "text": "BCH",
+                "callback_data": "BCH_add"
+              }
+            ],
+            [
+              {
+                "text": "KAS",
+                "callback_data": "KAS_add"
+              }
+            ]
+          ]
+        }
+      },
+      "chat_instance": "9037939216670540202",
+      "data": "MATIC_add"
+    }
+  }
