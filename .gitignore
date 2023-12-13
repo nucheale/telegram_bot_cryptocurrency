@@ -1,5 +1,6 @@
-/main — копия.py
 /main copy.py
-/scheduled_jobs copy.py
-/main copy 2.py
+/main_copy_2.py
+/currencies_db.sql
 /currencies_db copy.sql
+/test.json
+/.env

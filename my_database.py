@@ -1,11 +1,24 @@
 import sqlite3
 from datetime import datetime
 
+
 class Database:
     def __init__(self, db_file):
         self.connection = sqlite3.connect(db_file, check_same_thread=False)
         self.cursor = self.connection.cursor()
 
+    def create_tables(self):
+        with self.connection:
+            self.cursor.execute('CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, bot_id INTEGER, status INTEGER CHECK(status IN (0, 1)), time TEXT)')
+            self.cursor.execute('CREATE TABLE IF NOT EXISTS users_data (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, bot_id INTEGER, currency_name TEXT, currency_name_full TEXT)')
+            self.cursor.execute('CREATE TABLE IF NOT EXISTS currencies (id INTEGER PRIMARY KEY AUTOINCREMENT, currency_name TEXT, currency_name_full TEXT, currency_price REAL, timestamp TEXT)')
+            return
+        
+    def insert_currencies(self, currency):
+        with self.connection:
+            self.cursor.execute(f"INSERT INTO currencies (currency_name) SELECT '{currency}' WHERE NOT EXISTS (SELECT 1 FROM currencies WHERE currency_name = '{currency}')")
+            return
+        
     def print_users_db(self):
         self.cursor.execute('SELECT * FROM users')
         users = self.cursor.fetchall()
@@ -79,3 +92,8 @@ class Database:
         with self.connection:
             self.cursor.execute(f"INSERT INTO currencies (currency_name, currency_price, timestamp) VALUES ('{currency_name}', {currency_price}, '{datetime.now()}')")
             return
+        
+    def users_by_time(self, current_time):
+        self.cursor.execute(f"SELECT * FROM users WHERE time LIKE '%{current_time}%'")
+        users_by_time = self.cursor.fetchall()
+        return users_by_time
