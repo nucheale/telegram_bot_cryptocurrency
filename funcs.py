@@ -1,5 +1,7 @@
 from config_data import config
 from my_database import Database
+from aiogram import Bot
+from datetime import datetime
 from requests import Request, Session
 from requests.exceptions import ConnectionError, Timeout, TooManyRedirects
 import json
@@ -8,22 +10,23 @@ import threading
 from threading import Thread
 from admin import bot
 
-db = Database('currencies_db.sql')
+db = Database(config.DATABASE_FILE)
 
 url = 'https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest'
 parameters = {
-  'start':'1',
-  'limit':'99',
-  'convert':'USD'
+  'start': '1',
+  'limit': '99',
+  'convert': 'USD'
 }
 headers = {
   'Accepts': 'application/json',
-  'X-CMC_PRO_API_KEY': config.api_key.get_secret_value(),
+  'X-CMC_PRO_API_KEY': config.API_KEY.get_secret_value(),
 }
+
 
 def get_now_currencies(message):
     currency_list = db.list(message.from_user.id)
-    if currency_list == []:
+    if not currency_list:
         answer = 'У вас не выбрано ни одной валюты'
     else:
         session = Session()
@@ -35,19 +38,20 @@ def get_now_currencies(message):
             for e in data['data']:
                 for curr in currency_list:
                     if e['symbol'] == (re.sub(r'[^a-zA-Z]', '', str(curr[3]))):
-                        curr_price = '{:,.4f}'.format(e['quote']['USD']['price']) 
+                        curr_price = '{:,.4f}'.format(e['quote']['USD']['price'])
                         result += f"{(re.sub(r'[^a-zA-Z]', '', str(curr[3])))}: {curr_price} USD\n"
                         db.add_currency_price((re.sub(r'[^a-zA-Z]', '', str(curr[3]))), e['quote']['USD']['price'])
                         break
-            answer = f"Текущие курсы валют:\n{result}"
+            answer = f"<u>Текущие курсы валют:</u>\n{result}\nДата обновления: {datetime.now().strftime('%d.%m.%Y %H:%M')}"
         except (ConnectionError, Timeout, TooManyRedirects) as e:
             print(e)
     return answer
 
-from aiogram import Bot
+
 async def send_message_to_user(bot: Bot, user_id, message_to_send):
     print('NOOOOOOW 444444444 FUNC')
     await bot.send_message(user_id, message_to_send)
+
 
 async def send_messages(users, message_to_send):
     for user in users:
@@ -55,6 +59,7 @@ async def send_messages(users, message_to_send):
         # print(users.index(user))
         print('NOOOOOOW 3 FUNC')
         await send_message_to_user(user, message_to_send[users.index(user)])
+
 
 async def send_messages_in_threads(users, messages_to_send):
     # print (f'len(users): {len(users)}')
@@ -77,6 +82,7 @@ async def send_messages_in_threads(users, messages_to_send):
     for thread in threads:
         thread.join()
 
+
 def currencies_prices(users_list):
     result_array = []
     if not users_list == []:
@@ -96,12 +102,14 @@ def currencies_prices(users_list):
                                 result += f"{(re.sub(r'[^a-zA-Z]', '', str(curr[3])))}: {curr_price} USD\n"
                                 db.add_currency_price((re.sub(r'[^a-zA-Z]', '', str(curr[3]))), e['quote']['USD']['price'])
                                 break
-                    result = f"Текущие курсы валют:\n{result}"
+                    # result = f"Текущие курсы валют:\n{result}"
+                    result = f"<u>Текущие курсы валют:</u>\n{result}\nДата обновления: {datetime.now().strftime('%d.%m.%Y %H:%M')}"
                 except (ConnectionError, Timeout, TooManyRedirects) as e:
                     print(e)
                 result_array.append(result)
     # return await result_array
     return result_array
+
 
 async def send_push_messages(users, currencies):
     for i in range(0, len(users), 1):

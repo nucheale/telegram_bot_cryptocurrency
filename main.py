@@ -9,8 +9,9 @@ from datetime import datetime
 from admin import currencies, times, bot
 from my_database import Database
 from funcs import currencies_prices, send_push_messages
+from yandex_disk import upload_backup
 
-db = Database(config.database_file)
+db = Database(config.DATABASE_FILE)
 db.create_tables()
 for e in currencies:
     db.insert_currencies(e)
@@ -24,6 +25,7 @@ async def main():
     await bot.delete_webhook(drop_pending_updates=True)
     await disp.start_polling(bot, allowed_updates=disp.resolve_used_update_types())
 
+
 async def push_currency():
     while True:
         now = datetime.now()
@@ -36,12 +38,22 @@ async def push_currency():
                 if not users_by_time == []:
                     for elem in users_by_time:
                         all_users.append(elem[2])
-                    print (f'all_users: {all_users}')
+                    # print (f'all_users: {all_users}')
                 await send_push_messages(all_users, currencies_prices(all_users))
-        await asyncio.sleep(5)
+        await asyncio.sleep(35)
+
+
+async def upload_backup_by_time(hour, minute):
+    while True:
+        now = datetime.now()
+        # if now.hour == hour and now.minute == minute:
+        if now.hour == hour:
+            await upload_backup()
+        await asyncio.sleep(60 * 60)
+
 
 async def main_with_notifications():
-    await asyncio.gather(main(), push_currency())
+    await asyncio.gather(main(), push_currency(), upload_backup_by_time(4, 19))
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
