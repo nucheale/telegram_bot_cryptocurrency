@@ -12,6 +12,7 @@ class Database:
             self.cursor.execute('CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, bot_id INTEGER, status INTEGER CHECK(status IN (0, 1)), time TEXT)')
             self.cursor.execute('CREATE TABLE IF NOT EXISTS users_data (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, bot_id INTEGER, currency_name TEXT, currency_name_full TEXT)')
             self.cursor.execute('CREATE TABLE IF NOT EXISTS currencies (id INTEGER PRIMARY KEY AUTOINCREMENT, currency_name TEXT, currency_name_full TEXT, currency_price REAL, timestamp TEXT)')
+            self.cursor.execute('CREATE TABLE IF NOT EXISTS commands (id INTEGER PRIMARY KEY AUTOINCREMENT, command_name TEXT, command_description TEXT, count_calls INTEGER)')
             return
         
     def insert_currencies(self, currency):
@@ -39,7 +40,7 @@ class Database:
         
     def currency_included(self, bot_user_id, currency):
         result = self.cursor.execute(f"SELECT * FROM users_data WHERE bot_id = '{bot_user_id}' AND currency_name = '{currency}'").fetchall()
-        if result == []:
+        if not result:
             return False
         else:
             return True
@@ -88,6 +89,16 @@ class Database:
             return
     # def get_currencies_now(self)
 
+    def set_status_active(self, bot_user_id):
+        with self.connection:
+            self.cursor.execute(f"UPDATE users SET status = 1 WHERE bot_id = '{bot_user_id}'")
+            return
+
+    def set_status_inactive(self, bot_user_id):
+        with self.connection:
+            self.cursor.execute(f"UPDATE users SET status = 0 WHERE bot_id = '{bot_user_id}'")
+            return
+
     def add_currency_price(self, currency_name, currency_price):
         with self.connection:
             self.cursor.execute(f"INSERT INTO currencies (currency_name, currency_price, timestamp) VALUES ('{currency_name}', {currency_price}, '{datetime.now()}')")
@@ -97,3 +108,7 @@ class Database:
         self.cursor.execute(f"SELECT * FROM users WHERE time LIKE '%{current_time}%'")
         users_by_time = self.cursor.fetchall()
         return users_by_time
+
+    def help_commands(self):
+        result = self.cursor.execute(f"SELECT * FROM commands").fetchall()
+        return result
