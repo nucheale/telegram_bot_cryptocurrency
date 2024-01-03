@@ -1,0 +1,6 @@
+aiogram==3.2.0
+requests==2.31.0
+pydantic-settings==2.1.0
+httpx==0.25.2
+yadisk==2.0.0
+openai==0.28
