@@ -3,6 +3,7 @@ import asyncio
 import logging
 from aiogram import Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.utils.chat_action import ChatActionMiddleware
 from handlers import router
 from datetime import datetime
 
@@ -57,4 +58,5 @@ async def main_with_notifications():
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
+    router.message.middleware(ChatActionMiddleware())
     asyncio.run(main_with_notifications())

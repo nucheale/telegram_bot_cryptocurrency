@@ -8,7 +8,7 @@ from my_database import Database
 import re
 
 from funcs import get_now_currencies
-from open_ai_neuroapi import chatgpt_main
+from open_ai_neuroapi import chatgpt_main, chatgpt_any_request
 
 
 router = Router()
@@ -152,12 +152,21 @@ async def help_commands(message):
     # print(commands_list[0][1])
     result = ''
     for e in commands_list:
-        # result += f"{commands_list[e][0]}. {commands_list[e][1]} – {commands_list[e][2]}/n"
         result += f"{e[1]} – {e[2]}\n\n"
     await message.answer(f'{result}')
+
 
 @router.message(Command("m"))
 async def get_openai_answer(message):
     answer = await chatgpt_main(config.CHATGPT_PROMPT)
     await message.answer(answer)
-    # await message.answer("DONE")
+
+
+@router.message(Command("chatgpt"))
+async def callback_func(message):
+    await message.answer("Введите ваш запрос")
+    @router.message(F.text)
+    async def get_openai_answer(message):
+        answer = await chatgpt_any_request(message.text)
+        await message.answer(answer)
+

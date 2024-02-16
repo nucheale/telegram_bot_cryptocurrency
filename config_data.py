@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     YADISK_TOKEN: SecretStr
     NEUROAPI_KEY: SecretStr
     DATABASE_FILE: str
+    DATABASE_NAME_FOR_YADISK: str
     CHATGPT_PROMPT: str
     model_config = SettingsConfigDict(env_file='.env', env_file_encoding='utf-8')
 
