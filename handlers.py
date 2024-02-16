@@ -1,61 +1,66 @@
 from config_data import config
 from aiogram import types, F, Router
 from aiogram.types import Message, InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardRemove
-from aiogram.utils.keyboard import InlineKeyboardBuilder
+from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 from aiogram.filters import Command
-from admin import times, administrators, currencies
+from admin import administrators, currencies
 from my_database import Database
 import re
 
-from funcs import get_now_currencies
+from funcs import get_now_currencies, start, add, time
 from open_ai_neuroapi import chatgpt_main, chatgpt_any_request
 
 
 router = Router()
-
 db = Database(config.DATABASE_FILE)
+reply_builder = ReplyKeyboardBuilder()
 
 
 @router.message(Command("start"))
 async def cmd_start(message: types.Message):
-    if message.chat.type == 'private':
-        if not db.user_exists(message.from_user.id):
-            db.add_user(message.from_user.username, message.from_user.id)
-        await message.answer(f'<b>Добро пожаловать, {message.from_user.first_name}!</b> Для начала добавьте нужные валюты через команду /add (либо выберите нужную в меню внизу экрана), затем установите время для уведомления командой /time.')
+    await start(message)
 
 
 @router.message(Command("db"))
 async def print_users_db(message: types.Message):
-    for admin in administrators:
-        if message.from_user.id == admin:
-            users = db.print_users_db()
-            data_db = ''
-            for e in users:
-                data_db += f'id: {e[0]}, Имя: {e[1]}, user_id: {e[2]}, status: {e[3]}\n'
-            await message.answer(data_db)
+    if message.from_user.id in administrators:
+        users = db.print_users_db()
+        data_db = ''
+        for e in users:
+            data_db += f'id: {e[0]}, Имя: {e[1]}, user_id: {e[2]}, status: {e[3]}\n'
+        await message.answer(data_db)
 
 
 @router.message(Command("add"))
-async def add(message: types.Message):
-    builder = InlineKeyboardBuilder()
-    currency_list = db.list_all()
-    for e in currency_list:
-        builder.add(InlineKeyboardButton(text=(re.sub(r'[^a-zA-Z]', '', str(e))), callback_data=f"{re.sub(r'[^a-zA-Z]', '', str(e))}_add"))
-    builder.adjust(3)
-    await message.answer('Выберите нужную валюту для добавления', reply_markup=builder.as_markup())
+async def cmd_add(message: types.Message):
+    await add(message)
+
+
+# @router.callback_query(F.data == "/add")
+# async def cmd_add(callback: types.CallbackQuery):
+#     await add(callback.message)
+
+
+@router.message(F.text == "Добавить валюты для отслеживания")
+async def cmd_add(message: types.Message):
+    await add(message)
+
+@router.message(F.text == "Изменить время уведомления")
+async def cmd_time(message: types.Message):
+    await time(message)
 
 
 @router.callback_query(F.data.find('_add') != -1)
-async def callback_message(callback: types.CallbackQuery):
+async def callback_add_currency(callback: types.CallbackQuery):
     if db.currency_included(callback.from_user.id, callback.data.replace('_add', '')):
         await callback.message.answer(f"Валюта {callback.data.replace('_add', '')} уже была добавлена в ваш список ранее")
     else:
-        db.add_currency(callback.from_user.username, callback.from_user.id, callback.data.replace('_add', ''))  
+        db.add_currency(callback.from_user.username, callback.from_user.id, callback.data.replace('_add', ''))
         await callback.message.answer(f"Валюта {callback.data.replace('_add', '')} добавлена в ваш список")
 
 
 @router.message(Command("remove"))
-async def add(message):
+async def remove(message):
     builder = InlineKeyboardBuilder()
     currency_list = db.list(message.from_user.id)
     # result = ''
@@ -67,7 +72,7 @@ async def add(message):
 
 
 @router.callback_query(F.data.find('_remove') != -1)
-async def callback_message_delete(callback: types.CallbackQuery):
+async def callback_remove_currency(callback: types.CallbackQuery):
     db.remove_currency(callback.from_user.id, callback.data.replace('_remove', ''))
     await callback.message.answer(f"Валюта {callback.data.replace('_remove', '')} удалена из вашего списка")
 
@@ -112,16 +117,17 @@ async def currencies_list(message):
 
 
 @router.message(Command("time"))
-async def currencies_list(message):
-    builder = InlineKeyboardBuilder()
-    user_time = db.select_time(message.from_user.id)
-    for e in times:
-        builder.add(InlineKeyboardButton(text=e, callback_data=f'{str(e)}_set_time'))
-    builder.adjust(3)
-    if user_time == [(None,)] or user_time is None or user_time == "None":
-        await message.answer(f'Ваше текущее время для уведомления о курсах валют не установлено. Для установки выберите его из списка ниже. Указано московское время.', reply_markup=builder.as_markup())
-    else:
-        await message.answer(f'Ваше текущее время для уведомления о курсах валют: {user_time}. Для изменения выберите новое время из списка ниже. Указано московское время.', reply_markup=builder.as_markup())
+async def cmd_time(message):
+    time(message)
+    # builder = InlineKeyboardBuilder()
+    # user_time = db.select_time(message.from_user.id)
+    # for e in times:
+    #     builder.add(InlineKeyboardButton(text=e, callback_data=f'{str(e)}_set_time'))
+    # builder.adjust(3)
+    # if user_time == [(None,)] or user_time is None or user_time == "None":
+    #     await message.answer(f'Ваше текущее время для уведомления о курсах валют не установлено. Для установки выберите его из списка ниже. Указано московское время.', reply_markup=builder.as_markup())
+    # else:
+    #     await message.answer(f'Ваше текущее время для уведомления о курсах валют: {user_time}. Для изменения выберите новое время из списка ниже. Указано московское время.', reply_markup=builder.as_markup())
 
 
 @router.callback_query(F.data.find('_set_time') != -1)
@@ -165,6 +171,7 @@ async def get_openai_answer(message):
 @router.message(Command("chatgpt"))
 async def callback_func(message):
     await message.answer("Введите ваш запрос")
+
     @router.message(F.text)
     async def get_openai_answer(message):
         answer = await chatgpt_any_request(message.text)

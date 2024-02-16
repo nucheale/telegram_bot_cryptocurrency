@@ -1,6 +1,8 @@
 from config_data import config
 from my_database import Database
 from aiogram import Bot
+from aiogram.types import InlineKeyboardButton, KeyboardButton
+from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 from datetime import datetime
 from requests import Request, Session
 from requests.exceptions import ConnectionError, Timeout, TooManyRedirects
@@ -8,9 +10,10 @@ import json
 import re
 import threading
 from threading import Thread
-from admin import bot
+from admin import bot, times
 
 db = Database(config.DATABASE_FILE)
+session = Session()
 
 url = 'https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest'
 parameters = {
@@ -24,12 +27,43 @@ headers = {
 }
 
 
+async def start(message):
+    builder = ReplyKeyboardBuilder()
+    if message.chat.type == 'private':
+        if not db.user_exists(message.from_user.id):
+            db.add_user(message.from_user.username, message.from_user.id)
+        builder.add(KeyboardButton(text=f"Добавить валюты для отслеживания", callback_data=f"/add"))
+        builder.add(KeyboardButton(text=f"Изменить время уведомления", callback_data=f"/remove"))
+        builder.adjust(2)
+        await message.answer(f'<b>Добро пожаловать, {message.from_user.first_name}!\n\n</b>Для начала добавьте валюты для отслеживания, затем установите время для уведомления.\n\nСправочник команд: /help', reply_markup=builder.as_markup(resize_keyboard=True))
+
+
+async def add(message):
+    builder = InlineKeyboardBuilder()
+    currency_list = db.list_all()
+    for e in currency_list:
+        builder.add(InlineKeyboardButton(text=(re.sub(r'[^a-zA-Z]', '', str(e))), callback_data=f"{re.sub(r'[^a-zA-Z]', '', str(e))}_add"))
+    builder.adjust(3)
+    await message.answer('Выберите нужную валюту для добавления', reply_markup=builder.as_markup())
+
+
+async def time(message):
+    builder = InlineKeyboardBuilder()
+    user_time = db.select_time(message.from_user.id)
+    for e in times:
+        builder.add(InlineKeyboardButton(text=e, callback_data=f'{str(e)}_set_time'))
+    builder.adjust(3)
+    if user_time == [(None,)] or user_time is None or user_time == "None":
+        await message.answer(f'Ваше текущее время для уведомления о курсах валют не установлено.\nДля установки выберите его из списка ниже. Указано московское время.', reply_markup=builder.as_markup())
+    else:
+        await message.answer(f'Ваше текущее время для уведомления о курсах валют: {user_time}. Для изменения выберите новое время из списка ниже. Указано московское время.', reply_markup=builder.as_markup())
+
+
 def get_now_currencies(message):
     currency_list = db.list(message.from_user.id)
     if not currency_list:
         answer = 'У вас не выбрано ни одной валюты'
     else:
-        session = Session()
         session.headers.update(headers)
         try:
             response = session.get(url, params=parameters)
@@ -39,17 +73,19 @@ def get_now_currencies(message):
                 for curr in currency_list:
                     if e['symbol'] == (re.sub(r'[^a-zA-Z]', '', str(curr[3]))):
                         curr_price = '{:,.4f}'.format(e['quote']['USD']['price'])
-                        result += f"{(re.sub(r'[^a-zA-Z]', '', str(curr[3])))}: {curr_price} USD\n"
+                        curr_change24 = round(float(e['quote']['USD']['percent_change_24h']), 2)
+                        if curr_change24 > 0:
+                            curr_change24 = f"+{str(curr_change24)}"
+                        result += f"{(re.sub(r'[^a-zA-Z]', '', str(curr[3])))}: {curr_price} USD. {curr_change24}% за 24 ч.\n\n"
                         db.add_currency_price((re.sub(r'[^a-zA-Z]', '', str(curr[3]))), e['quote']['USD']['price'])
                         break
-            answer = f"<u>Текущие курсы валют:</u>\n{result}\nДата обновления: {datetime.now().strftime('%d.%m.%Y %H:%M')}"
+            answer = f"<u>Текущие курсы валют:</u>\n\n{result}\nДата обновления: {datetime.now().strftime('%d.%m.%Y %H:%M')}"
         except (ConnectionError, Timeout, TooManyRedirects) as e:
             print(e)
     return answer
 
 
 async def send_message_to_user(bot: Bot, user_id, message_to_send):
-    print('NOOOOOOW 444444444 FUNC')
     await bot.send_message(user_id, message_to_send)
 
 
@@ -57,13 +93,11 @@ async def send_messages(users, message_to_send):
     for user in users:
         # print(message_to_send)
         # print(users.index(user))
-        print('NOOOOOOW 3 FUNC')
         await send_message_to_user(user, message_to_send[users.index(user)])
 
 
 async def send_messages_in_threads(users, messages_to_send):
     # print (f'len(users): {len(users)}')
-    print('NOOOOOOW 2 FUNC')
     if len(users) < 10:
         num_threads = 1
     else:
@@ -89,7 +123,6 @@ def currencies_prices(users_list):
         for user in users_list:
             currency_list = db.list(user)
             if not currency_list == []:
-                session = Session()
                 session.headers.update(headers)
                 try:
                     response = session.get(url, params=parameters)
@@ -98,12 +131,14 @@ def currencies_prices(users_list):
                     for e in data['data']:
                         for curr in currency_list:
                             if e['symbol'] == (re.sub(r'[^a-zA-Z]', '', str(curr[3]))):
-                                curr_price = '{:,.4f}'.format(e['quote']['USD']['price']) 
-                                result += f"{(re.sub(r'[^a-zA-Z]', '', str(curr[3])))}: {curr_price} USD\n"
+                                curr_price = '{:,.4f}'.format(e['quote']['USD']['price'])
+                                curr_change24 = round(float(e['quote']['USD']['percent_change_24h']), 2)
+                                if curr_change24 > 0:
+                                    curr_change24 = f"+{str(curr_change24)}"
+                                result += f"{(re.sub(r'[^a-zA-Z]', '', str(curr[3])))}: {curr_price} USD. {curr_change24}% за 24 ч.\n\n"
                                 db.add_currency_price((re.sub(r'[^a-zA-Z]', '', str(curr[3]))), e['quote']['USD']['price'])
                                 break
-                    # result = f"Текущие курсы валют:\n{result}"
-                    result = f"<u>Текущие курсы валют:</u>\n{result}\nДата обновления: {datetime.now().strftime('%d.%m.%Y %H:%M')}"
+                    result = f"<u>Текущие курсы валют:</u>\n\n{result}\nДата обновления: {datetime.now().strftime('%d.%m.%Y %H:%M')}"
                 except (ConnectionError, Timeout, TooManyRedirects) as e:
                     print(e)
                 result_array.append(result)
