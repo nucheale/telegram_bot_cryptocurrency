@@ -1,19 +1,19 @@
-import logging
-
-from config_data import config
-from my_database import Database
 from aiogram import Bot
 from aiogram.types import InlineKeyboardButton, KeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 from datetime import datetime
 from requests import Request, Session
 from requests.exceptions import ConnectionError, Timeout, TooManyRedirects
+import asyncio
+import logging
 import json
 import re
 import threading
 import emoji
 from threading import Thread
 
+from config_data import config
+from my_database import Database
 from admin import bot, times
 
 db = Database(config.DATABASE_FILE)
@@ -30,6 +30,15 @@ headers = {
   'X-CMC_PRO_API_KEY': config.API_KEY.get_secret_value(),
 }
 
+reply_builder = ReplyKeyboardBuilder()
+reply_builder.add(KeyboardButton(text=f"{emoji.emojize(':money_with_wings:')}Выбранные валюты", callback_data="/list"))
+reply_builder.add(KeyboardButton(text=f"{emoji.emojize(':plus:')}Добавить валюты", callback_data=f"/add"))
+reply_builder.add(KeyboardButton(text=f"{emoji.emojize(':minus:')}Удалить валюты", callback_data=f"/remove"))
+reply_builder.add(KeyboardButton(text=f"{emoji.emojize(':alarm_clock:')}Изменить время уведомления", callback_data=f"/time"))
+reply_builder.add(KeyboardButton(text=f"{emoji.emojize(':cross_mark:')}Отключить уведомления", callback_data=f"/disable"))
+reply_builder.add(KeyboardButton(text=f"{emoji.emojize(':green_circle:')}Текущие курсы валют", callback_data=f"/get_now"))
+reply_builder.adjust(2)
+
 
 async def update_bot():
     users_id = db.print_users_id()
@@ -37,44 +46,28 @@ async def update_bot():
     counter = 0
     for user_id in users_id:
         user_id = re.sub(r'\W+', '', str(user_id))
-        # message = await bot.send_message(user_id, f"Обновление от {today}", disable_notification=True)
-        # message = await bot.send_message(config.ADMINISTRATOR_01, f"Обновление от {today}", disable_notification=True, reply_markup=builder.as_markup(resize_keyboard=True))
+        # message = await bot.send_message(user_id, f"Обновление от {today}", disable_notification=True, reply_markup=reply_builder.as_markup(resize_keyboard=True))
+        # message = await bot.send_message(config.ADMINISTRATOR_01, f"Обновление от {today}", disable_notification=True, reply_markup=reply_builder.as_markup(resize_keyboard=True))
         await update_buttons(user_id, today)
         counter += 1
         if counter >= 25:
-            time.sleep(5)
+            await asyncio.sleep(5)
             counter = 0
 
 
 async def update_buttons(user_id, today):
-    builder = ReplyKeyboardBuilder()
-    builder.add(KeyboardButton(text=f"{emoji.emojize(':money_with_wings:')}Выбранные валюты", callback_data="/list"))
-    builder.add(KeyboardButton(text=f"{emoji.emojize(':plus:')}Добавить валюты", callback_data=f"/add"))
-    builder.add(KeyboardButton(text=f"{emoji.emojize(':minus:')}Удалить валюты", callback_data=f"/remove"))
-    builder.add(KeyboardButton(text=f"{emoji.emojize(':alarm_clock:')}Изменить время уведомления", callback_data=f"/time"))
-    builder.add(KeyboardButton(text=f"{emoji.emojize(':cross_mark:')}Отключить уведомления", callback_data=f"/disable"))
-    builder.add(KeyboardButton(text=f"{emoji.emojize(':green_circle:')}Текущие курсы валют", callback_data=f"/get_now"))
-    builder.adjust(2)
     try:
-        message = await bot.send_message(user_id, f"Обновление от {today}", disable_notification=True, reply_markup=builder.as_markup(resize_keyboard=True))
+        message = await bot.send_message(chat_id=user_id, text=f"Обновление от {today}", disable_notification=True, reply_markup=reply_builder.as_markup(resize_keyboard=True))
         # await message.delete()
     except Exception as e:
         logging.error(e)
 
 
 async def start(message):
-    builder = ReplyKeyboardBuilder()
     if message.chat.type == 'private':
         if not db.user_exists(message.from_user.id):
             db.add_user(message.from_user.username, message.from_user.id)
-        builder.add(KeyboardButton(text=f"{emoji.emojize(':money_with_wings:')}Выбранные валюты", callback_data="/list"))
-        builder.add(KeyboardButton(text=f"{emoji.emojize(':plus:')}Добавить валюты", callback_data=f"/add"))
-        builder.add(KeyboardButton(text=f"{emoji.emojize(':minus:')}Удалить валюты", callback_data=f"/remove"))
-        builder.add(KeyboardButton(text=f"{emoji.emojize(':alarm_clock:')}Изменить время уведомления", callback_data=f"/time"))
-        builder.add(KeyboardButton(text=f"{emoji.emojize(':cross_mark:')}Отключить уведомления", callback_data=f"/disable"))
-        builder.add(KeyboardButton(text=f"{emoji.emojize(':green_circle:')}Текущие курсы валют", callback_data=f"/get_now"))
-        builder.adjust(2)
-        await message.answer(f'<b>Добро пожаловать, {message.from_user.first_name}!\n\n</b>Для начала добавьте валюты для отслеживания, затем установите время для уведомления.\n\nСправочник команд: /help', reply_markup=builder.as_markup(resize_keyboard=True))
+        await message.answer(f'<b>Добро пожаловать, {message.from_user.first_name}!\n\n</b>Для начала добавьте валюты для отслеживания, затем установите время для уведомления.\n\nСправочник команд: /help', reply_markup=reply_builder.as_markup(resize_keyboard=True))
 
 
 async def add(message):
