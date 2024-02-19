@@ -4,3 +4,4 @@ pydantic-settings==2.1.0
 httpx==0.25.2
 yadisk==2.0.0
 openai==0.28
+emoji==2.10.1

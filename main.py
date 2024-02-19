@@ -19,7 +19,6 @@ for e in currencies:
 
 
 async def main():
-    # bot = Bot(token=config.bot_token.get_secret_value(), parse_mode=ParseMode.HTML)
     disp = Dispatcher(storage=MemoryStorage())
     disp.include_router(router)
     print('Бот запущен')

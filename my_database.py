@@ -25,6 +25,11 @@ class Database:
         users = self.cursor.fetchall()
         return users
 
+    def print_users_id(self):
+        self.cursor.execute('SELECT bot_id FROM users')
+        users_id = self.cursor.fetchall()
+        return users_id
+
     def user_exists(self, bot_user_id):
         result = self.cursor.execute(f"SELECT * FROM users WHERE bot_id = '{bot_user_id}'").fetchone()
         if result is None:
