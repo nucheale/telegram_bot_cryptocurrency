@@ -7,7 +7,8 @@ import emoji
 from admin import administrators, currencies
 from my_database import Database
 from funcs import update_bot, start, add, remove, time, disable, currencies_list, get_now_currencies
-from open_ai_neuroapi import chatgpt_all_models
+# from open_ai_neuroapi import chatgpt_all_models
+from open_ai_g4f import chatgpt_all_models
 
 
 router = Router()
