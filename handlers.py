@@ -7,7 +7,6 @@ import emoji
 from admin import administrators, currencies
 from my_database import Database
 from funcs import update_bot, start, add, remove, time, disable, currencies_list, get_now_currencies
-# from open_ai_neuroapi import chatgpt_all_models
 from open_ai_g4f import chatgpt_all_models
 
 
@@ -34,8 +33,6 @@ async def cmd_update_keyboard(message: Message):
 
 @router.message(Command("db"))
 async def print_users_db(message: Message):
-    for e in administrators:
-        print(e)
     if message.from_user.id in administrators:
         users = db.print_users_db()
         data_db = ''
@@ -81,7 +78,6 @@ async def cmd_remove(message):
 
 @router.callback_query(F.data.endswith('_remove'))
 async def callback_remove_currency(callback: CallbackQuery):
-    print(F.data)
     db.remove_currency(callback.from_user.id, callback.data.replace('_remove', ''))
     await callback.message.answer(f"Валюта {callback.data.replace('_remove', '')} удалена из вашего списка")
 
@@ -93,13 +89,7 @@ async def cmd_currencies_list(message):
 
 @router.message(F.text.contains(f"{emoji.emojize(':money_with_wings:')}Выбранные валюты"))
 async def cmd_currencies_list(message):
-    print(F.data)
     await currencies_list(message)
-
-
-# @router.callback_query(F.data == "/list")
-# async def cmd_currencies_list(message):
-#     await currencies_list(message)
 
 
 @router.message(Command("list_all"))
@@ -164,8 +154,6 @@ async def cmd_disable(message: Message):
 @router.message(Command("help"))
 async def help_commands(message):
     commands_list = db.help_commands()
-    # print(commands_list)
-    # print(commands_list[0][1])
     result = ''
     for e in commands_list:
         result += f"{e[1]} – {e[2]}\n\n"
@@ -175,7 +163,6 @@ async def help_commands(message):
 @router.message(Command("m"))
 async def get_openai_answer(message):
     if message.from_user.id in administrators:
-        print(message.from_user.id)
         answer = await chatgpt_all_models(config.CHATGPT_PROMPT)
         await message.answer(answer)
 

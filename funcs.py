@@ -152,8 +152,6 @@ async def send_message_to_user(bot: Bot, user_id, message_to_send):
 
 async def send_messages(users, message_to_send):
     for user in users:
-        # print(message_to_send)
-        # print(users.index(user))
         await send_message_to_user(user, message_to_send[users.index(user)])
 
 
