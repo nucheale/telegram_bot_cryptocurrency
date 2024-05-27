@@ -1,12 +1,14 @@
 from config_data import config
 from aiogram import F, Router
-from aiogram.types import Message, CallbackQuery
-from aiogram.filters import Command
+from aiogram.types import Message, CallbackQuery, ReplyKeyboardRemove
+from aiogram.filters import Command, StateFilter
+from aiogram.fsm.state import StatesGroup, State
+from aiogram.fsm.context import FSMContext
 import emoji
 
 from admin import administrators, currencies
 from my_database import Database
-from funcs import update_bot, start, add, remove, time, disable, currencies_list, get_now_currencies
+from funcs import update_bot, start, add, remove, time, disable, currencies_list, get_now_currencies, send_message_to_admins, make_row_keyboard, get_work_time
 from open_ai_g4f import chatgpt_all_models
 
 
@@ -175,3 +177,36 @@ async def callback_func(message):
     async def get_openai_answer(message):
         answer = await chatgpt_all_models(message.text)
         await message.answer(answer)
+
+
+class AdminMessage(StatesGroup):
+    typing_prompt = State()
+    confirming_prompt = State() 
+
+
+@router.message(StateFilter(None), Command("send_admin_message"))
+async def send_admin_message(message: Message, state: FSMContext):
+    if message.from_user.id in administrators:
+        await message.answer(text="Введите промпт")
+        await state.set_state(AdminMessage.typing_prompt)
+
+
+yes_no_answers = ['Отправляем', 'Не отправляем']
+
+@router.message(AdminMessage.typing_prompt, F.text)
+async def food_chosen(message: Message, state: FSMContext):
+    await state.update_data(choosen_prompt=message.text)
+    await message.answer(text="Подтвердите отправку сообщения", reply_markup=make_row_keyboard(yes_no_answers))
+    await state.set_state(AdminMessage.confirming_prompt)
+
+@router.message(AdminMessage.confirming_prompt, F.text.in_(yes_no_answers))
+async def prompt_confirmed(message: Message, state: FSMContext):
+    user_data = await state.get_data()
+    await send_message_to_admins(message.from_user.id, user_data['choosen_prompt'], message.text)
+    await state.clear()
+
+
+@router.message(Command("work"))
+async def work(message: Message):
+    response = get_work_time()
+    await message.answer(response)
