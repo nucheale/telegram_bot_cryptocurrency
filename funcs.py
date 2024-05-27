@@ -1,5 +1,5 @@
 from aiogram import Bot
-from aiogram.types import InlineKeyboardButton, KeyboardButton
+from aiogram.types import InlineKeyboardButton, KeyboardButton, ReplyKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 from datetime import datetime
 from requests import Request, Session
@@ -14,7 +14,7 @@ from threading import Thread
 
 from config_data import config
 from my_database import Database
-from admin import bot, times
+from admin import bot, times, administrators
 
 db = Database(config.DATABASE_FILE)
 session = Session()
@@ -39,6 +39,22 @@ reply_builder.add(KeyboardButton(text=f"{emoji.emojize(':cross_mark:')}Откл�
 reply_builder.add(KeyboardButton(text=f"{emoji.emojize(':green_circle:')}Текущие курсы валют", callback_data=f"/get_now"))
 reply_builder.adjust(2)
 
+
+def make_row_keyboard(items: list[str]) -> ReplyKeyboardMarkup:
+    """
+    Создаёт реплай-клавиатуру с кнопками в один ряд
+    :param items: список текстов для кнопок
+    :return: объект реплай-клавиатуры
+    """
+    row = [KeyboardButton(text=item) for item in items]
+    return ReplyKeyboardMarkup(keyboard=[row], resize_keyboard=True)
+
+async def send_message_to_admins(user_id, prompt, condition):
+    if condition == 'Отправляем':
+        for admin_id in administrators:
+            await bot.send_message(chat_id=admin_id, text=prompt, reply_markup=reply_builder.as_markup(resize_keyboard=True))
+    elif condition == 'Не отправляем':
+        await bot.send_message(chat_id=user_id, text='Отправка отменена', reply_markup=reply_builder.as_markup(resize_keyboard=True))
 
 async def update_bot():
     users_id = db.print_users_id()
@@ -145,6 +161,22 @@ def get_now_currencies(message):
             print(e)
     return answer
 
+
+def get_work_time():
+    working_days = [0, 1, 2, 3, 4]
+    day_of_week = datetime.today().weekday()
+    if day_of_week in working_days:
+        if day_of_week != 4:
+            end_time = datetime.now().replace(hour=18, minute=0, second=0, microsecond=0)
+        else:
+            end_time = datetime.now().replace(hour=17, minute=0, second=0, microsecond=0)
+        time_remaining = end_time - datetime.now()
+        hours_remaining  = format(time_remaining.seconds // 3600)
+        minutes_remaining  = format((time_remaining.seconds // 60) % 60)
+        answer = f"До конца рабочего дня {hours_remaining} часов и {minutes_remaining} минут"
+    else:
+        answer = 'Сегодня выходной!!!'
+    return answer
 
 async def send_message_to_user(bot: Bot, user_id, message_to_send):
     await bot.send_message(user_id, message_to_send)
