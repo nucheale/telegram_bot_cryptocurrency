@@ -27,8 +27,7 @@ class Database:
 
     def print_users_id(self):
         self.cursor.execute('SELECT bot_id FROM users')
-        users_id_sql = self.cursor.fetchall()
-        users_id = [row[0] for row in users_id_sql]
+        users_id = self.cursor.fetchall()
         return users_id
 
     def user_exists(self, bot_user_id):
@@ -45,7 +44,7 @@ class Database:
             return
         
     def currency_included(self, bot_user_id, currency):
-        result = self.cursor.execute(f"SELECT * FROM users_data WHERE bot_id = '{bot_user_id}' AND currency_name = '{currency}' LIMIT 1").fetchall()
+        result = self.cursor.execute(f"SELECT * FROM users_data WHERE bot_id = '{bot_user_id}' AND currency_name = '{currency}'").fetchall()
         if not result:
             return False
         else:
@@ -63,15 +62,14 @@ class Database:
         
     def user_currencies(self, bot_user_id):
         with self.connection:
-            self.cursor.execute(f"SELECT currency_name FROM users_data WHERE bot_id = '{bot_user_id}'")
+            self.cursor.execute(f"SELECT * FROM users_data WHERE bot_id = '{bot_user_id}'")
             currency_list_sql = self.cursor.fetchall()
-            currency_list = [row[0] for row in currency_list_sql]
+            currency_list = [row[3] for row in currency_list_sql]
             return currency_list
         
     def list_all(self):
         self.cursor.execute(f"SELECT DISTINCT currency_name FROM currencies")
-        currency_list_sql = self.cursor.fetchall()
-        currency_list = [row[0] for row in currency_list_sql]
+        currency_list = self.cursor.fetchall()
         return currency_list
     
     def remove_all(self, bot_user_id):
