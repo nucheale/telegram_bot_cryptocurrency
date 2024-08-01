@@ -8,9 +8,7 @@ import asyncio
 import logging
 import json
 import re
-import threading
 import emoji
-from threading import Thread
 
 from config_data import config
 from my_database import Database
@@ -49,6 +47,30 @@ def make_row_keyboard(items: list[str]) -> ReplyKeyboardMarkup:
     row = [KeyboardButton(text=item) for item in items]
     return ReplyKeyboardMarkup(keyboard=[row], resize_keyboard=True)
 
+
+def check_admin_rights(user_id):
+    if user_id in administrators:
+        return True
+    else:
+        return False
+
+
+def admin_commands():
+    commands_list = db.admin_commands()
+    result = ''
+    for command in commands_list:
+        result += f"{command[0]} – {command[1]}\n"
+    return result
+
+
+def help_commands():
+    commands_list = db.help_commands()
+    result = ''
+    for command in commands_list:
+        result += f"{command[0]} – {command[1]}\n\n"
+    return result
+
+
 async def send_message_to_admins(user_id, prompt, condition):
     if condition == 'Отправляем':
         for admin_id in administrators:
@@ -56,27 +78,26 @@ async def send_message_to_admins(user_id, prompt, condition):
     elif condition == 'Не отправляем':
         await bot.send_message(chat_id=user_id, text='Отправка отменена', reply_markup=reply_builder.as_markup(resize_keyboard=True))
 
+
+async def update_buttons(user_id, today):
+    try:
+        message = await bot.send_message(chat_id=user_id, text=f"Обновление от {today}", disable_notification=True, reply_markup=reply_builder.as_markup(resize_keyboard=True))
+        await message.delete()
+    except Exception as e:
+        logging.error(e)
+
+
 async def update_bot():
     users_id = db.print_users_id()
     today = datetime.now().strftime("%d.%m.%Y")
     counter = 0
     for user_id in users_id:
         user_id = re.sub(r'\W+', '', str(user_id))
-        # message = await bot.send_message(user_id, f"Обновление от {today}", disable_notification=True, reply_markup=reply_builder.as_markup(resize_keyboard=True))
-        # message = await bot.send_message(config.ADMINISTRATOR_01, f"Обновление от {today}", disable_notification=True, reply_markup=reply_builder.as_markup(resize_keyboard=True))
         await update_buttons(user_id, today)
         counter += 1
         if counter >= 25:
             await asyncio.sleep(5)
             counter = 0
-
-
-async def update_buttons(user_id, today):
-    try:
-        message = await bot.send_message(chat_id=user_id, text=f"Обновление от {today}", disable_notification=True, reply_markup=reply_builder.as_markup(resize_keyboard=True))
-        # await message.delete()
-    except Exception as e:
-        logging.error(e)
 
 
 async def start(message):
@@ -97,21 +118,21 @@ async def add(message):
 
 async def remove(message):
     builder = InlineKeyboardBuilder()
-    currency_list = db.list(message.from_user.id)
+    currency_list = db.user_currencies(message.from_user.id)
     for e in currency_list:
         builder.add(InlineKeyboardButton(text=f'{e[3]}', callback_data=f'{e[3]}_remove'))
     builder.adjust(3)
     await message.answer('Выберите нужную валюту для удаления', reply_markup=builder.as_markup())
 
 
-
 async def time(message):
     builder = InlineKeyboardBuilder()
-    user_time = db.select_time(message.from_user.id)
+    user_time = db.user_time(message.from_user.id)
+    print(user_time)
     for e in times:
         builder.add(InlineKeyboardButton(text=e, callback_data=f'{str(e)}_set_time'))
     builder.adjust(3)
-    if user_time == [(None,)] or user_time is None or user_time == "None":
+    if user_time is None or user_time == "None":
         await message.answer(f'Ваше текущее время для уведомления о курсах валют не установлено.\nДля установки выберите его из списка ниже. Указано московское время.', reply_markup=builder.as_markup())
     else:
         await message.answer(f'Ваше текущее время для уведомления о курсах валют: {user_time}. Для изменения выберите новое время из списка ниже. Указано московское время.', reply_markup=builder.as_markup())
@@ -125,19 +146,20 @@ async def disable(message):
 
 
 async def currencies_list(message):
-    currencies_list_user = db.list(message.from_user.id)
+    currencies_list_user = db.user_currencies(message.from_user.id)
     if not currencies_list_user:
         await message.answer('У вас не выбрано ни одной валюты')
     else:
         result = ''
         n = 1
-        for e in currencies_list_user:
-            result += f'{n}. {e[3]}\n'
-            n = n + 1
+        for curr in currencies_list_user:
+            result += f'{n}. {curr}\n'
+            n += 1
         await message.answer(f"Ваши выбранные валюты:\n{result}")
 
+
 def get_now_currencies(message):
-    currency_list = db.list(message.from_user.id)
+    currency_list = db.user_currencies(message.from_user.id)
     if not currency_list:
         answer = 'У вас не выбрано ни одной валюты'
     else:
@@ -148,13 +170,14 @@ def get_now_currencies(message):
             result = ''
             for e in data['data']:
                 for curr in currency_list:
-                    if e['symbol'] == (re.sub(r'[^a-zA-Z]', '', str(curr[3]))):
+                    curr_currency = (re.sub(r'[^a-zA-Z]', '', curr))
+                    if e['symbol'] == curr_currency:
                         curr_price = '{:,.4f}'.format(e['quote']['USD']['price'])
                         curr_change24 = round(float(e['quote']['USD']['percent_change_24h']), 2)
                         if curr_change24 > 0:
                             curr_change24 = f"+{str(curr_change24)}"
-                        result += f"{(re.sub(r'[^a-zA-Z]', '', str(curr[3])))}: {curr_price} USD. {curr_change24}% за 24 ч.\n\n"
-                        db.add_currency_price((re.sub(r'[^a-zA-Z]', '', str(curr[3]))), e['quote']['USD']['price'])
+                        result += f"{curr_currency}: {curr_price} USD. {curr_change24}% за 24 ч.\n\n"
+                        db.add_currency_price(curr_currency, e['quote']['USD']['price'])
                         break
             answer = f"<u>Текущие курсы валют:</u>\n\n{result}\nДата обновления: {datetime.now().strftime('%d.%m.%Y %H:%M')}"
         except (ConnectionError, Timeout, TooManyRedirects) as e:
@@ -162,57 +185,11 @@ def get_now_currencies(message):
     return answer
 
 
-def get_work_time():
-    working_days = [0, 1, 2, 3, 4]
-    day_of_week = datetime.today().weekday()
-    if day_of_week in working_days:
-        if day_of_week != 4:
-            end_time = datetime.now().replace(hour=18, minute=0, second=0, microsecond=0)
-        else:
-            end_time = datetime.now().replace(hour=17, minute=0, second=0, microsecond=0)
-        time_remaining = end_time - datetime.now()
-        hours_remaining  = format(time_remaining.seconds // 3600)
-        minutes_remaining  = format((time_remaining.seconds // 60) % 60)
-        answer = f"До конца рабочего дня {hours_remaining} часов и {minutes_remaining} минут"
-    else:
-        answer = 'Сегодня выходной!!!'
-    return answer
-
-async def send_message_to_user(bot: Bot, user_id, message_to_send):
-    await bot.send_message(user_id, message_to_send)
-
-
-async def send_messages(users, message_to_send):
-    for user in users:
-        await send_message_to_user(user, message_to_send[users.index(user)])
-
-
-async def send_messages_in_threads(users, messages_to_send):
-    # print (f'len(users): {len(users)}')
-    if len(users) < 10:
-        num_threads = 1
-    else:
-        num_threads = 12
-    users_per_thread = len(users) // num_threads
-    # print (f'users_per_thread: {users_per_thread}')
-    threads = []
-
-    if len(users) > 0:
-        for i in range(0, len(users), users_per_thread):
-            # thread = threading.Thread(target=send_messages, args=(users[i:i+users_per_thread], message_to_send)) 
-            thread = await threading.Thread(target=send_messages, args=(users[i:i+users_per_thread], messages_to_send[i:i+users_per_thread])) 
-            threads.append(thread)
-            thread.start()
-
-    for thread in threads:
-        thread.join()
-
-
 def currencies_prices(users_list):
     result_array = []
     if not users_list == []:
         for user in users_list:
-            currency_list = db.list(user)
+            currency_list = db.user_currencies(user)
             if not currency_list == []:
                 session.headers.update(headers)
                 try:
@@ -221,7 +198,7 @@ def currencies_prices(users_list):
                     result = ''
                     for e in data['data']:
                         for curr in currency_list:
-                            if e['symbol'] == (re.sub(r'[^a-zA-Z]', '', str(curr[3]))):
+                            if e['symbol'] == (re.sub(r'[^a-zA-Z]', '', curr)):
                                 curr_price = '{:,.4f}'.format(e['quote']['USD']['price'])
                                 curr_change24 = round(float(e['quote']['USD']['percent_change_24h']), 2)
                                 if curr_change24 > 0:
@@ -232,9 +209,29 @@ def currencies_prices(users_list):
                     result = f"<u>Текущие курсы валют:</u>\n\n{result}\nДата обновления: {datetime.now().strftime('%d.%m.%Y %H:%M')}"
                 except (ConnectionError, Timeout, TooManyRedirects) as e:
                     print(e)
+                print(result)
                 result_array.append(result)
-    # return await result_array
     return result_array
+
+
+def get_work_time():
+    working_days = [0, 1, 2, 3, 4]
+    day_of_week = datetime.today().weekday()
+    if day_of_week in working_days:
+        if day_of_week != 4:
+            end_time = datetime.now().replace(hour=18, minute=0, second=0, microsecond=0)
+        else:
+            end_time = datetime.now().replace(hour=17, minute=0, second=0, microsecond=0)
+        if datetime.now() <= end_time:
+            time_remaining = end_time - datetime.now()
+            hours_remaining = format(time_remaining.seconds // 3600)
+            minutes_remaining = format((time_remaining.seconds // 60) % 60)
+            answer = f"До конца рабочего дня {hours_remaining} часов и {minutes_remaining} минут"
+        else:
+            answer = f'Рабочий день окончен!!!'
+    else:
+        answer = 'Сегодня выходной!!!'
+    return answer
 
 
 async def send_push_messages(users, currencies):

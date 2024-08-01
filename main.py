@@ -28,32 +28,27 @@ async def main():
 
 async def push_currency():
     while True:
+        await asyncio.sleep(60)
         now = datetime.now()
         for time_element in times:
-            all_users = []
-            if now.hour == int(time_element.split(':')[0]) and now.minute == int(time_element.split(':')[1]):
-            # if int(time_element.split(':')[0]) == 22 and int(time_element.split(':')[1]) == 50:
+            time_element_hour = int(time_element.split(':')[0])
+            time_element_minute = int(time_element.split(':')[1])
+            if now.hour == time_element_hour and now.minute == time_element_minute:
                 users_by_time = db.users_by_time(time_element)
-                # print (f'users_by_time: {users_by_time}')
                 if not users_by_time == []:
-                    for elem in users_by_time:
-                        all_users.append(elem[2])
-                    # print (f'all_users: {all_users}')
-                await send_push_messages(all_users, currencies_prices(all_users))
-        await asyncio.sleep(55)
+                    await send_push_messages(users_by_time, currencies_prices(users_by_time))
 
 
-async def upload_backup_by_time(hour, minute):
+async def upload_backup_by_time(upload_hour):
     while True:
-        now = datetime.now()
-        # if now.hour == hour and now.minute == minute:
-        if now.hour == hour:
+        now_hour = datetime.now().hour
+        if now_hour == upload_hour:
             await upload_backup()
         await asyncio.sleep(60 * 60)
 
 
 async def main_with_notifications():
-    await asyncio.gather(main(), push_currency(), upload_backup_by_time(4, 19))
+    await asyncio.gather(main(), push_currency(), upload_backup_by_time(4))
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)

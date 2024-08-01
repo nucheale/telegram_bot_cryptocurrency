@@ -1,8 +1,8 @@
-aiogram
-requests
+aiogram==3.2.0
+requests==2.25.1
 pydantic-settings==2.1.0
 httpx==0.25.2
-yadisk
+yadisk==2.0.0
 emoji
-pydantic
-g4f
+pydantic==2.5.2
+g4f==0.3.1.0

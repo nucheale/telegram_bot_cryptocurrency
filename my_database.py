@@ -60,10 +60,11 @@ class Database:
             self.cursor.execute(f"DELETE FROM users_data WHERE bot_id = '{bot_user_id}' AND currency_name = '{currency}'")
             return
         
-    def list(self, bot_user_id):
+    def user_currencies(self, bot_user_id):
         with self.connection:
             self.cursor.execute(f"SELECT * FROM users_data WHERE bot_id = '{bot_user_id}'")
-            currency_list = self.cursor.fetchall()
+            currency_list_sql = self.cursor.fetchall()
+            currency_list = [row[3] for row in currency_list_sql]
             return currency_list
         
     def list_all(self):
@@ -82,10 +83,12 @@ class Database:
             self.cursor.execute(f"INSERT INTO users_data (name, bot_id, currency_name) SELECT '{username}', '{bot_user_id}', '{currency}' WHERE NOT EXISTS (SELECT 1 FROM users_data WHERE bot_id = '{bot_user_id}' AND currency_name = '{currency}')")
             return
         
-    def select_time(self, bot_user_id):
+    def user_time(self, bot_user_id):
         with self.connection:
-            self.cursor.execute(f"SELECT * FROM users WHERE bot_id = '{bot_user_id}'")
-            user_time = self.cursor.fetchall()[0][4]
+            user_time_sql = self.cursor.execute(f"SELECT time FROM users WHERE bot_id = '{bot_user_id}'").fetchone()
+            user_time = user_time_sql[0]
+            if 'None' in user_time:
+                user_time = None
             return user_time
      
     def set_time(self, time, bot_user_id):
@@ -110,10 +113,15 @@ class Database:
             return
         
     def users_by_time(self, current_time):
-        self.cursor.execute(f"SELECT * FROM users WHERE time LIKE '%{current_time}%'")
-        users_by_time = self.cursor.fetchall()
+        self.cursor.execute(f"SELECT bot_id FROM users WHERE time LIKE '%{current_time}%'")
+        users_by_time_sql = self.cursor.fetchall()
+        users_by_time = [row[0] for row in users_by_time_sql]
         return users_by_time
 
     def help_commands(self):
-        result = self.cursor.execute(f"SELECT * FROM commands").fetchall()
+        result = self.cursor.execute(f"SELECT command_name, command_description FROM commands WHERE role = 'all'").fetchall()
         return result
+
+    def admin_commands(self):
+        admin_commands = self.cursor.execute(f"SELECT command_name, command_description FROM commands WHERE role = 'admin'").fetchall()
+        return admin_commands

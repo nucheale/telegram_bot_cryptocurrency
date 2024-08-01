@@ -6,9 +6,9 @@ from aiogram.fsm.state import StatesGroup, State
 from aiogram.fsm.context import FSMContext
 import emoji
 
-from admin import administrators, currencies
+from admin import currencies
 from my_database import Database
-from funcs import update_bot, start, add, remove, time, disable, currencies_list, get_now_currencies, send_message_to_admins, make_row_keyboard, get_work_time
+from funcs import update_bot, start, add, remove, time, disable, currencies_list, get_now_currencies, send_message_to_admins, make_row_keyboard, get_work_time, check_admin_rights, admin_commands, help_commands
 from open_ai_g4f import chatgpt_all_models
 
 
@@ -23,26 +23,26 @@ async def cmd_start(message: Message):
 
 @router.message(Command("admin"))
 async def cmd_admin_commands(message: Message):
-    if message.from_user.id in administrators:
-        await message.answer("/db\n\n/update_bot")
+    if check_admin_rights(message.from_user.id):
+        await message.answer(admin_commands())
 
 
 @router.message(Command("update_bot"))
 async def cmd_update_keyboard(message: Message):
-    if message.from_user.id in administrators:
+    if check_admin_rights(message.from_user.id):
         await update_bot()
 
 
 @router.message(Command("db"))
 async def print_users_db(message: Message):
-    if message.from_user.id in administrators:
+    if check_admin_rights(message.from_user.id):
         users = db.print_users_db()
         data_db = ''
         for e in users:
             data_db += f'id: {e[0]}, Имя: {e[1]}, user_id: {e[2]}, status: {e[3]}\n'
         await message.answer(data_db)
     else:
-        await message.answer(f"{message.from_user.id}  {config.ADMINISTRATOR_01}")
+        await message.answer(f"Вы не являетесь администратором. Ваш id: {message.from_user.id}")
 
 
 @router.message(Command("add"))
@@ -154,17 +154,13 @@ async def cmd_disable(message: Message):
 
 
 @router.message(Command("help"))
-async def help_commands(message):
-    commands_list = db.help_commands()
-    result = ''
-    for e in commands_list:
-        result += f"{e[1]} – {e[2]}\n\n"
-    await message.answer(f'{result}')
+async def cmd_help_commands(message):
+    await message.answer(help_commands())
 
 
 @router.message(Command("m"))
 async def get_openai_answer(message):
-    if message.from_user.id in administrators:
+    if check_admin_rights(message.from_user.id):
         answer = await chatgpt_all_models(config.CHATGPT_PROMPT)
         await message.answer(answer)
 
@@ -186,18 +182,20 @@ class AdminMessage(StatesGroup):
 
 @router.message(StateFilter(None), Command("send_admin_message"))
 async def send_admin_message(message: Message, state: FSMContext):
-    if message.from_user.id in administrators:
+    if check_admin_rights(message.from_user.id):
         await message.answer(text="Введите промпт")
         await state.set_state(AdminMessage.typing_prompt)
 
 
 yes_no_answers = ['Отправляем', 'Не отправляем']
 
+
 @router.message(AdminMessage.typing_prompt, F.text)
 async def food_chosen(message: Message, state: FSMContext):
     await state.update_data(choosen_prompt=message.text)
     await message.answer(text="Подтвердите отправку сообщения", reply_markup=make_row_keyboard(yes_no_answers))
     await state.set_state(AdminMessage.confirming_prompt)
+
 
 @router.message(AdminMessage.confirming_prompt, F.text.in_(yes_no_answers))
 async def prompt_confirmed(message: Message, state: FSMContext):
