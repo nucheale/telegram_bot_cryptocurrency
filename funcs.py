@@ -7,7 +7,7 @@ from requests.exceptions import ConnectionError, Timeout, TooManyRedirects
 import asyncio
 import logging
 import json
-import re
+# import re
 import emoji
 
 from config_data import config
@@ -79,9 +79,9 @@ async def send_message_to_admins(user_id, prompt, condition):
         await bot.send_message(chat_id=user_id, text='Отправка отменена', reply_markup=reply_builder.as_markup(resize_keyboard=True))
 
 
-async def update_buttons(user_id, today):
+async def update_buttons(user_id, update_day):
     try:
-        message = await bot.send_message(chat_id=user_id, text=f"Обновление от {today}", disable_notification=True, reply_markup=reply_builder.as_markup(resize_keyboard=True))
+        message = await bot.send_message(chat_id=user_id, text=f"Обновление от {update_day}", disable_notification=True, reply_markup=reply_builder.as_markup(resize_keyboard=True))
         await message.delete()
     except Exception as e:
         logging.error(e)
@@ -92,7 +92,6 @@ async def update_bot():
     today = datetime.now().strftime("%d.%m.%Y")
     counter = 0
     for user_id in users_id:
-        user_id = re.sub(r'\W+', '', str(user_id))
         await update_buttons(user_id, today)
         counter += 1
         if counter >= 25:
@@ -111,7 +110,7 @@ async def add(message):
     builder = InlineKeyboardBuilder()
     currency_list = db.list_all()
     for e in currency_list:
-        builder.add(InlineKeyboardButton(text=(re.sub(r'[^a-zA-Z]', '', str(e))), callback_data=f"{re.sub(r'[^a-zA-Z]', '', str(e))}_add"))
+        builder.add(InlineKeyboardButton(text=e, callback_data=f"{e}_add"))
     builder.adjust(3)
     await message.answer('Выберите нужную валюту для добавления', reply_markup=builder.as_markup())
 
@@ -120,7 +119,7 @@ async def remove(message):
     builder = InlineKeyboardBuilder()
     currency_list = db.user_currencies(message.from_user.id)
     for e in currency_list:
-        builder.add(InlineKeyboardButton(text=f'{e[3]}', callback_data=f'{e[3]}_remove'))
+        builder.add(InlineKeyboardButton(text=f'{e}', callback_data=f'{e}_remove'))
     builder.adjust(3)
     await message.answer('Выберите нужную валюту для удаления', reply_markup=builder.as_markup())
 
@@ -169,19 +168,18 @@ def get_now_currencies(message):
             data = json.loads(response.text)
             result = ''
             for e in data['data']:
-                for curr in currency_list:
-                    curr_currency = (re.sub(r'[^a-zA-Z]', '', curr))
-                    if e['symbol'] == curr_currency:
-                        curr_price = '{:,.4f}'.format(e['quote']['USD']['price'])
+                for currency in currency_list:
+                    if e['symbol'] == currency:
+                        curr_price = "{:,.2f}".format(e['quote']['USD']['price']).replace(',', ' ').replace('.', ',')
                         curr_change24 = round(float(e['quote']['USD']['percent_change_24h']), 2)
                         if curr_change24 > 0:
                             curr_change24 = f"+{str(curr_change24)}"
-                        result += f"{curr_currency}: {curr_price} USD. {curr_change24}% за 24 ч.\n\n"
-                        db.add_currency_price(curr_currency, e['quote']['USD']['price'])
+                        result += f"{currency}: {curr_price} USD. {curr_change24}% за 24 ч.\n\n"
+                        db.add_currency_price(currency, e['quote']['USD']['price'])
                         break
             answer = f"<u>Текущие курсы валют:</u>\n\n{result}\nДата обновления: {datetime.now().strftime('%d.%m.%Y %H:%M')}"
         except (ConnectionError, Timeout, TooManyRedirects) as e:
-            print(e)
+            answer = 'Ошибка'
     return answer
 
 
@@ -197,19 +195,19 @@ def currencies_prices(users_list):
                     data = json.loads(response.text)
                     result = ''
                     for e in data['data']:
-                        for curr in currency_list:
-                            if e['symbol'] == (re.sub(r'[^a-zA-Z]', '', curr)):
-                                curr_price = '{:,.4f}'.format(e['quote']['USD']['price'])
+                        for currency in currency_list:
+                            if e['symbol'] == currency:
+                                curr_price = "{:,.2f}".format(e['quote']['USD']['price']).replace(',', ' ').replace('.', ',')
                                 curr_change24 = round(float(e['quote']['USD']['percent_change_24h']), 2)
                                 if curr_change24 > 0:
                                     curr_change24 = f"+{str(curr_change24)}"
-                                result += f"{(re.sub(r'[^a-zA-Z]', '', str(curr[3])))}: {curr_price} USD. {curr_change24}% за 24 ч.\n\n"
-                                db.add_currency_price((re.sub(r'[^a-zA-Z]', '', str(curr[3]))), e['quote']['USD']['price'])
+                                result += f"{currency}: {curr_price} USD. {curr_change24}% за 24 ч.\n\n"
+                                db.add_currency_price(currency, e['quote']['USD']['price'])
                                 break
                     result = f"<u>Текущие курсы валют:</u>\n\n{result}\nДата обновления: {datetime.now().strftime('%d.%m.%Y %H:%M')}"
                 except (ConnectionError, Timeout, TooManyRedirects) as e:
                     print(e)
-                print(result)
+                    result = 'Ошибка'
                 result_array.append(result)
     return result_array
 
