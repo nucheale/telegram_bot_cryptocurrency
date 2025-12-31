@@ -7,30 +7,30 @@ from aiogram.utils.chat_action import ChatActionMiddleware
 from handlers import router
 from datetime import datetime
 
-from admin import currencies, times, bot
+from admin import CURRENCIES, TIMES, BOT
 from my_database import Database
 from funcs import currencies_prices, send_push_messages
 from yandex_disk import upload_backup
 
 db = Database(config.DATABASE_FILE)
 db.create_tables()
-for e in currencies:
-    db.insert_currencies(e)
+for curr in CURRENCIES:
+    db.insert_currencies(curr)
 
 
 async def main():
     disp = Dispatcher(storage=MemoryStorage())
     disp.include_router(router)
     print('Бот запущен')
-    await bot.delete_webhook(drop_pending_updates=True)
-    await disp.start_polling(bot, allowed_updates=disp.resolve_used_update_types())
+    await BOT.delete_webhook(drop_pending_updates=True)
+    await disp.start_polling(BOT, allowed_updates=disp.resolve_used_update_types())
 
 
 async def push_currency():
     while True:
         await asyncio.sleep(60)
         now = datetime.now()
-        for time_element in times:
+        for time_element in TIMES:
             time_element_hour = int(time_element.split(':')[0])
             time_element_minute = int(time_element.split(':')[1])
             if now.hour == time_element_hour and now.minute == time_element_minute:
@@ -48,7 +48,10 @@ async def upload_backup_by_time(upload_hour):
 
 
 async def main_with_notifications():
-    await asyncio.gather(main(), push_currency(), upload_backup_by_time(4))
+    backup_hour = 4
+    tasks = [main(), push_currency(), upload_backup_by_time(backup_hour)]
+    await asyncio.gather(*tasks, return_exceptions=True)
+
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)

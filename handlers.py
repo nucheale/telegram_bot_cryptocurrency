@@ -8,9 +8,9 @@ from aiogram.fsm.state import StatesGroup, State
 from aiogram.fsm.context import FSMContext
 import emoji
 
-from admin import currencies
+from admin import CURRENCIES
 from my_database import Database
-from funcs import update_bot, start, add, remove, time, disable, currencies_list, get_now_currencies, \
+from funcs import update_bot, start, add, remove, time, disable, get_user_currencies_list, get_now_currencies, \
     send_message_to_admins, make_row_keyboard, get_work_time, check_admin_rights, get_admin_commands, get_help_commands
 from ai_g4f import ai_all_models
 
@@ -43,10 +43,10 @@ async def print_users_db(message: Message):
     users = db.print_users_db()
     batch = 50
     for i in range(0, len(users), batch):
-        chunk = users[i:i + batch]
+        users_batched = users[i:i + batch]
         data_db = "\n".join(
             f"id: {db_id}, Имя: {name}, user_id: {user_id}, Статус: {'Активный' if status == 1 else 'Неактивный'}"
-            for db_id, name, user_id, status, *_ in chunk
+            for db_id, name, user_id, status, *_ in users_batched
         )
         await message.answer(data_db or "База пуста")
 
@@ -99,20 +99,20 @@ async def callback_remove_currency(callback: CallbackQuery):
 
 @router.message(Command("list"))
 async def cmd_currencies_list(message):
-    await currencies_list(message)
+    await get_user_currencies_list(message)
 
 
 @router.message(F.text.contains(f"{emoji.emojize(':money_with_wings:')}Выбранные валюты"))
 async def cmd_currencies_list(message):
-    await currencies_list(message)
+    await get_user_currencies_list(message)
 
 
 @router.message(Command("list_all"))
 async def list_all(message):
-    currency_list = db.list_all()
+    currency_list = CURRENCIES
     result = ""
-    for i, e in enumerate(currency_list):
-        result += f'{i + 1}. {e[0]}\n'
+    for i, curr in enumerate(currency_list):
+        result += f'{i + 1}. {curr}\n'
     await message.answer(f'Список доступных валют:\n{result}')
 
 
@@ -124,7 +124,7 @@ async def remove_all(message):
 
 @router.message(Command("add_top"))
 async def add_top(message):
-    for e in currencies[:10]:
+    for e in CURRENCIES[:10]:
         db.add_top(message.from_user.username, message.from_user.id, e)
     await message.answer(f'К вашему списку добавлены 10 самых популярных валют на данный момент')
 
@@ -226,3 +226,8 @@ async def prompt_confirmed(message: Message, state: FSMContext):
 async def work(message: Message):
     response = get_work_time()
     await message.answer(response)
+
+@router.message(Command("tts"))
+async def tts(message: Message):
+    now_time = datetime.datetime.now()
+    await message.answer(str(now_time))
