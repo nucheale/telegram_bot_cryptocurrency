@@ -1,3 +1,5 @@
+import datetime
+
 from config_data import config
 from aiogram import F, Router
 from aiogram.types import Message, CallbackQuery, ReplyKeyboardRemove
@@ -8,9 +10,9 @@ import emoji
 
 from admin import currencies
 from my_database import Database
-from funcs import update_bot, start, add, remove, time, disable, currencies_list, get_now_currencies, send_message_to_admins, make_row_keyboard, get_work_time, check_admin_rights, admin_commands, help_commands
-from open_ai_g4f import chatgpt_all_models
-
+from funcs import update_bot, start, add, remove, time, disable, currencies_list, get_now_currencies, \
+    send_message_to_admins, make_row_keyboard, get_work_time, check_admin_rights, get_admin_commands, get_help_commands
+from ai_g4f import ai_all_models
 
 router = Router()
 db = Database(config.DATABASE_FILE)
@@ -24,7 +26,7 @@ async def cmd_start(message: Message):
 @router.message(Command("admin"))
 async def cmd_admin_commands(message: Message):
     if check_admin_rights(message.from_user.id):
-        await message.answer(admin_commands())
+        await message.answer(get_admin_commands())
 
 
 @router.message(Command("update_bot"))
@@ -35,14 +37,23 @@ async def cmd_update_keyboard(message: Message):
 
 @router.message(Command("db"))
 async def print_users_db(message: Message):
-    if check_admin_rights(message.from_user.id):
-        users = db.print_users_db()
-        data_db = ''
-        for e in users:
-            data_db += f'id: {e[0]}, Имя: {e[1]}, user_id: {e[2]}, status: {e[3]}\n'
-        await message.answer(data_db)
-    else:
+    if not check_admin_rights(message.from_user.id):
         await message.answer(f"Вы не являетесь администратором. Ваш id: {message.from_user.id}")
+        return
+    users = db.print_users_db()
+    batch = 50
+    for i in range(0, len(users), batch):
+        chunk = users[i:i + batch]
+        data_db = "\n".join(
+            f"id: {db_id}, Имя: {name}, user_id: {user_id}, Статус: {'Активный' if status == 1 else 'Неактивный'}"
+            for db_id, name, user_id, status, *_ in chunk
+        )
+        await message.answer(data_db or "База пуста")
+
+    active, nonactive = db.get_usage_stats()
+    if active or nonactive:
+        usage_stats_answer = f"Активных: {active or 0}\nНеактивных: {nonactive or 0}"
+        await message.answer(usage_stats_answer)
 
 
 @router.message(Command("add"))
@@ -63,7 +74,8 @@ async def cmd_time(message: Message):
 @router.callback_query(F.data.endswith('_add'))
 async def callback_add_currency(callback: CallbackQuery):
     if db.currency_included(callback.from_user.id, callback.data.replace('_add', '')):
-        await callback.message.answer(f"Валюта {callback.data.replace('_add', '')} уже была добавлена в ваш список ранее")
+        await callback.message.answer(
+            f"Валюта {callback.data.replace('_add', '')} уже была добавлена в ваш список ранее")
     else:
         db.add_currency(callback.from_user.username, callback.from_user.id, callback.data.replace('_add', ''))
         await callback.message.answer(f"Валюта {callback.data.replace('_add', '')} добавлена в ваш список")
@@ -77,6 +89,7 @@ async def cmd_remove(message):
 @router.message(F.text.contains("Удалить валют"))
 async def cmd_remove(message):
     await remove(message)
+
 
 @router.callback_query(F.data.endswith('_remove'))
 async def callback_remove_currency(callback: CallbackQuery):
@@ -97,11 +110,9 @@ async def cmd_currencies_list(message):
 @router.message(Command("list_all"))
 async def list_all(message):
     currency_list = db.list_all()
-    result = ''
-    n = 1
-    for e in currency_list:
-        result += f'{n}. {e[0]}\n'
-        n = n + 1
+    result = ""
+    for i, e in enumerate(currency_list):
+        result += f'{i + 1}. {e[0]}\n'
     await message.answer(f'Список доступных валют:\n{result}')
 
 
@@ -113,9 +124,8 @@ async def remove_all(message):
 
 @router.message(Command("add_top"))
 async def add_top(message):
-    for e in currencies:
-        if currencies.index(e) <= 9:
-            db.add_top(message.from_user.username, message.from_user.id, e)
+    for e in currencies[:10]:
+        db.add_top(message.from_user.username, message.from_user.id, e)
     await message.answer(f'К вашему списку добавлены 10 самых популярных валют на данный момент')
 
 
@@ -128,7 +138,8 @@ async def cmd_time(message):
 async def callback_message(callback: CallbackQuery):
     db.set_time(callback.data.replace('_set_time', ''), callback.from_user.id)
     db.set_status_active(callback.from_user.id)
-    await callback.message.answer(f"Установлено новое время для уведомления о курсах валют: {callback.data.replace('_set_time', '')}")
+    await callback.message.answer(
+        f"Установлено новое время для уведомления о курсах валют: {callback.data.replace('_set_time', '')}")
 
 
 @router.message(Command("get_now"))
@@ -155,14 +166,21 @@ async def cmd_disable(message: Message):
 
 @router.message(Command("help"))
 async def cmd_help_commands(message):
-    await message.answer(help_commands())
+    await message.answer(get_help_commands())
 
 
 @router.message(Command("m"))
 async def get_openai_answer(message):
     if check_admin_rights(message.from_user.id):
-        answer = await chatgpt_all_models(config.CHATGPT_PROMPT)
+        base_prompt = config.CHATGPT_PROMPT
+        day, month = datetime.datetime.now().day, datetime.datetime.now().month
+        holiday_dates = [[31, 12], [1, 1]]
+        if [day, month] in holiday_dates:
+            base_prompt = config.CHATGPT_NEY_YEAR_PROMPT
+        answer = await ai_all_models(base_prompt)
         await message.answer(answer)
+        await message.answer(day)
+        await message.answer(month)
 
 
 @router.message(Command("chatgpt"))
@@ -171,13 +189,13 @@ async def callback_func(message):
 
     @router.message(F.text)
     async def get_openai_answer(message):
-        answer = await chatgpt_all_models(message.text)
+        answer = await ai_all_models(message.text)
         await message.answer(answer)
 
 
 class AdminMessage(StatesGroup):
     typing_prompt = State()
-    confirming_prompt = State() 
+    confirming_prompt = State()
 
 
 @router.message(StateFilter(None), Command("send_admin_message"))

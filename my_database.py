@@ -25,6 +25,11 @@ class Database:
         users = self.cursor.fetchall()
         return users
 
+    def get_usage_stats(self):
+        nonactive = self.cursor.execute("SELECT COUNT(*) FROM users WHERE status = 0").fetchone()[0]
+        active = self.cursor.execute("SELECT COUNT(*) FROM users WHERE status = 1").fetchone()[0]
+        return [active, nonactive]
+
     def print_users_id(self):
         self.cursor.execute('SELECT bot_id FROM users')
         users_id = self.cursor.fetchall()

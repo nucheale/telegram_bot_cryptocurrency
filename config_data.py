@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     DATABASE_FILE: str
     DATABASE_NAME_FOR_YADISK: str
     CHATGPT_PROMPT: str
+    CHATGPT_NEY_YEAR_PROMPT: str
     ADMINISTRATOR_01: int
     ADMINISTRATOR_02: int
     model_config = SettingsConfigDict(env_file='.env', env_file_encoding='utf-8')
